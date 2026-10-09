@@ -16,13 +16,16 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 # Set up the mod binary
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
-if (NOT DEFINED ENV{GEODE_SDK})
-    message(FATAL_ERROR "Unable to find Geode SDK! Please define GEODE_SDK environment variable to point to Geode")
-else()
-    message(STATUS "Found Geode: $ENV{GEODE_SDK}")
-endif()
+include(FetchContent)
+FetchContent_Declare(
+    GeodeSDK
+    GIT_REPOSITORY https://github.com/geode-sdk/geode.git
 
-add_subdirectory($ENV{GEODE_SDK} ${CMAKE_CURRENT_BINARY_DIR}/geode)
+    GIT_TAG        main
+)
+FetchContent_MakeAvailable(GeodeSDK)
+add_subdirectory(${geodesdk_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/geode)
+
 
 # Set up dependencies, resources, and link Geode.
 setup_geode_mod(${PROJECT_NAME})
