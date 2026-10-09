@@ -1,17 +1,55 @@
 {
-	"geode": "$GEODE_VERSION",
-	"gd": {
-		"win": "2.2081",
-		"android": "2.2081",
-		"mac": "2.2081",
-		"ios": "2.2081"
-	},
-	"id": "$MOD_ID",
-	"name": "$MOD_NAME",
-	"version": "$MOD_VERSION",
-	"developer": "$MOD_DEVELOPER",
-	"description": "$MOD_DESCRIPTION",
-	"dependencies": {
-		"geode.node-ids": ">=v1.23.3"
-	}
+    "geode": "3.0.0-beta.1",
+    "id": "oxpy.fake_heartrate",
+    "version": "1.0.0",
+    "name": "Fake Heartrate",
+    "developer": "Oxpy",
+    "description": "Displays a dynamic fake heart rate that increases towards the end of the level.",
+    "repository": "",
+    "dependencies": [
+        {
+            "id": "geode.loader",
+            "version": ">=3.0.0-beta.1",
+            "importance": "required"
+        }
+    ],
+    "settings": {
+        "range1-end": {
+            "type": "int",
+            "name": "First Range End (%)",
+            "description": "The percentage until which the initial heart rate is active",
+            "default": 12,
+            "min": 1,
+            "max": 100
+        },
+        "range1-min-bpm": {
+            "type": "int",
+            "name": "Min BPM (Range 1)",
+            "default": 80,
+            "min": 40,
+            "max": 220
+        },
+        "range1-max-bpm": {
+            "type": "int",
+            "name": "Max BPM (Range 1)",
+            "default": 90,
+            "min": 40,
+            "max": 220
+        },
+        "range2-min-bpm": {
+            "type": "int",
+            "name": "Min BPM (Late-game)",
+            "description": "Heart rate at the very end of the level",
+            "default": 140,
+            "min": 40,
+            "max": 220
+        },
+        "range2-max-bpm": {
+            "type": "int",
+            "name": "Max BPM (Late-game)",
+            "default": 150,
+            "min": 40,
+            "max": 220
+        }
+    }
 }
