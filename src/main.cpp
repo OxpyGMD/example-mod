@@ -4,16 +4,13 @@
 
 using namespace geode::prelude;
 
-// Создаем правильную структуру полей для Geode v3
-struct MyFields {
-    CCLabelBMFont* m_bpmLabel = nullptr;
-    CCSprite* m_heartSprite = nullptr;
-    float m_updateTimer = 0.0f;
-};
-
 class $modify(MyPlayLayer, PlayLayer) {
-    // Регистрируем структуру в классе игры
-    std::unique_ptr<MyFields> m_myFields = std::make_unique<MyFields>();
+    // 1. ПРАВИЛЬНОЕ ОБЪЯВЛЕНИЕ ПОЛЕЙ ДЛЯ GEODE V3
+    struct Fields {
+        CCLabelBMFont* m_bpmLabel = nullptr;
+        CCSprite* m_heartSprite = nullptr;
+        float m_updateTimer = 0.0f;
+    };
 
     bool init(GJGameLevel* level, bool usePracticeMode, bool isPlaytest) {
         if (!PlayLayer::init(level, usePracticeMode, isPlaytest)) return false;
@@ -28,7 +25,9 @@ class $modify(MyPlayLayer, PlayLayer) {
         heart->setScale(0.6f);
         heart->setPosition({60, 40}); // Левый нижний угол
         this->addChild(heart, 100);
-        m_fields->m_myFields->m_heartSprite = heart;
+        
+        // 2. ПРАВИЛЬНОЕ ПРИСВОЕНИЕ ЧЕРЕЗ МАКРОС M_FIELDS
+        m_fields->m_heartSprite = heart;
 
         // Создаем текст для BPM
         auto label = CCLabelBMFont::create("80 BPM", "bigFont.fnt");
@@ -36,7 +35,8 @@ class $modify(MyPlayLayer, PlayLayer) {
         label->setAnchorPoint({0.0f, 0.5f});
         label->setPosition({75, 40});
         this->addChild(label, 100);
-        m_fields->m_myFields->m_bpmLabel = label;
+        
+        m_fields->m_bpmLabel = label;
 
         return true;
     }
@@ -44,22 +44,21 @@ class $modify(MyPlayLayer, PlayLayer) {
     void update(float dt) {
         PlayLayer::update(dt);
 
-        auto fields = m_fields->m_myFields.get();
-        if (!fields->m_bpmLabel || !fields->m_heartSprite) return;
+        if (!m_fields->m_bpmLabel || !m_fields->m_heartSprite) return;
 
         // Таймер обновления пульса (раз в 0.7 секунды)
-        fields->m_updateTimer += dt;
-        if (fields->m_updateTimer >= 0.7f) {
-            fields->m_updateTimer = 0.0f;
+        m_fields->m_updateTimer += dt;
+        if (m_fields->m_updateTimer >= 0.7f) {
+            m_fields->m_updateTimer = 0.0f;
 
             float currentPercent = this->getCurrentPercent();
 
-            // Читаем настройки из меню Geode
-            auto endRange1 = Mod::get()->getSettingValue<int64_t>("range1-end");
-            auto minBpm1 = Mod::get()->getSettingValue<int64_t>("range1-min-bpm");
-            auto maxBpm1 = Mod::get()->getSettingValue<int64_t>("range1-max-bpm");
-            auto minBpm2 = Mod::get()->getSettingValue<int64_t>("range2-min-bpm");
-            auto maxBpm2 = Mod::get()->getSettingValue<int64_t>("range2-max-bpm");
+            // Читаем настройки из меню Geode с правильным приведением типов
+            int endRange1 = static_cast<int>(Mod::get()->getSettingValue<int64_t>("range1-end"));
+            int minBpm1 = static_cast<int>(Mod::get()->getSettingValue<int64_t>("range1-min-bpm"));
+            int maxBpm1 = static_cast<int>(Mod::get()->getSettingValue<int64_t>("range1-max-bpm"));
+            int minBpm2 = static_cast<int>(Mod::get()->getSettingValue<int64_t>("range2-min-bpm"));
+            int maxBpm2 = static_cast<int>(Mod::get()->getSettingValue<int64_t>("range2-max-bpm"));
 
             int targetMin = minBpm1;
             int targetMax = maxBpm1;
@@ -76,10 +75,12 @@ class $modify(MyPlayLayer, PlayLayer) {
             std::uniform_int_distribution<> distr(targetMin, targetMax);
             int currentBPM = distr(gen);
 
-            // Обновляем текст и делаем анимацию пульсации сердца
-            fields->m_bpmLabel->setString(fmt::format("{} BPM", currentBPM).c_str());
-            fields->m_heartSprite->setScale(0.75f);
-            fields->m_heartSprite->runAction(CCScaleTo::create(0.2f, 0.6f));
+            // 5. ИСПРАВЛЕННЫЙ ВЫВОД СТРОКИ БЕЗ СЛОМАННОГО FMT
+            std::string bpmStr = std::to_string(currentBPM) + " BPM";
+            m_fields->m_bpmLabel->setString(bpmStr.c_str());
+            
+            m_fields->m_heartSprite->setScale(0.75f);
+            m_fields->m_heartSprite->runAction(CCScaleTo::create(0.2f, 0.6f));
         }
     }
 };
