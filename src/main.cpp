@@ -1,100 +1,83 @@
-/**
- * Include the Geode headers.
- */
 #include <Geode/Geode.hpp>
+#include <Geode/modify/PlayLayer.hpp>
+#include <random>
 
-/**
- * Brings cocos2d and all Geode namespaces to the current scope.
- */
 using namespace geode::prelude;
 
-/**
- * `$modify` lets you extend and modify GD's classes.
- * To hook a function in Geode, simply $modify the class
- * and write a new function definition with the signature of
- * the function you want to hook.
- *
- * Here we use the overloaded `$modify` macro to set our own class name,
- * so that we can use it for button callbacks.
- *
- * Notice the header being included, you *must* include the header for
- * the class you are modifying, or you will get a compile error.
- *
- * Another way you could do this is like this:
- *
- * struct MyMenuLayer : Modify<MyMenuLayer, MenuLayer> {};
- */
-#include <Geode/modify/MenuLayer.hpp>
-class $modify(MyMenuLayer, MenuLayer) {
-	/**
-	 * Typically classes in GD are initialized using the `init` function, (though not always!),
-	 * so here we use it to add our own button to the bottom menu.
-	 *
-	 * Note that for all hooks, your signature has to *match exactly*,
-	 * `void init()` would not place a hook!
-	*/
-	bool init() {
-		/**
-		 * We call the original init function so that the
-		 * original class is properly initialized.
-		 */
-		if (!MenuLayer::init()) {
-			return false;
-		}
+class $modify(MyPlayLayer, PlayLayer) {
+    CCLabelBMFont* m_bpmLabel = nullptr;
+    CCSprite* m_heartSprite = nullptr;
+    float m_updateTimer = 0.0f;
 
-		/**
-		 * You can use methods from the `geode::log` namespace to log messages to the console,
-		 * being useful for debugging and such. See this page for more info about logging:
-		 * https://docs.geode-sdk.org/tutorials/logging
-		*/
-		log::debug("Hello from my MenuLayer::init hook! This layer has {} children.", this->getChildrenCount());
+    bool init(GJGameLevel* level, bool usePracticeMode, bool isPlaytest) {
+        if (!PlayLayer::init(level, usePracticeMode, isPlaytest)) return false;
 
-		/**
-		 * See this page for more info about buttons
-		 * https://docs.geode-sdk.org/tutorials/buttons
-		*/
-		auto myButton = CCMenuItemSpriteExtra::create(
-			CCSprite::createWithSpriteFrameName("GJ_likeBtn_001.png"),
-			this,
-			/**
-			 * Here we use the name we set earlier for our modify class.
-			*/
-			menu_selector(MyMenuLayer::onMyButton)
-		);
+        // Creating the heart icon texture
+        m_fields->m_heartSprite = CCSprite::createWithSpriteFrameName("GJ_heart.png");
+        if (!m_fields->m_heartSprite) {
+            m_fields->m_heartSprite = CCSprite::createWithSpriteFrameName("GJ_starsIcon_001.png");
+        }
+        
+        // Coloring the heart red
+        m_fields->m_heartSprite->setColor({255, 50, 50});
+        m_fields->m_heartSprite->setScale(0.6f);
+        m_fields->m_heartSprite->setPosition({60, 40}); // Bottom left corner
+        this->addChild(m_fields->m_heartSprite, 100);
 
-		/**
-		 * Here we access the `bottom-menu` node by its ID, and add our button to it.
-		 * Node IDs are a Geode feature, see this page for more info about it:
-		 * https://docs.geode-sdk.org/tutorials/nodetree
-		*/
-		auto menu = this->getChildByID("bottom-menu");
-		menu->addChild(myButton);
+        // Creating the BPM text layout
+        m_fields->m_bpmLabel = CCLabelBMFont::create("80 BPM", "bigFont.fnt");
+        m_fields->m_bpmLabel->setScale(0.4f);
+        m_fields->m_bpmLabel->setAnchorPoint({0.0f, 0.5f});
+        m_fields->m_bpmLabel->setPosition({75, 40});
+        this->addChild(m_fields->m_bpmLabel, 100);
 
-		/**
-		 * The `_spr` string literal operator just prefixes the string with
-		 * your mod id followed by a slash. This is good practice for setting your own node ids.
-		*/
-		myButton->setID("my-button"_spr);
+        return true;
+    }
 
-		/**
-		 * We update the layout of the menu to ensure that our button is properly placed.
-		 * This is yet another Geode feature, see this page for more info about it:
-		 * https://docs.geode-sdk.org/tutorials/layouts
-		*/
-		menu->updateLayout();
+    void update(float dt) {
+        PlayLayer::update(dt);
 
-		/**
-		 * We return `true` to indicate that the class was properly initialized.
-		 */
-		return true;
-	}
+        // Updating the heart rate every 0.7 seconds for smooth breathing effect
+        m_fields->m_updateTimer += dt;
+        if (m_fields->m_updateTimer >= 0.7f) {
+            m_fields->m_updateTimer = 0.0f;
 
-	/**
-	 * This is the callback function for the button we created earlier.
-	 * The signature for button callbacks must always be the same,
-	 * return type `void` and taking a `CCObject*`.
-	*/
-	void onMyButton(CCObject*) {
-		FLAlertLayer::create("Geode", "Hello from my custom mod!", "OK")->show();
-	}
+            if (!m_fields->m_bpmLabel || !m_fields->m_heartSprite) return;
+
+            // Getting current progress percentage
+            float currentPercent = this->getCurrentPercent();
+
+            // Getting customizable values from the Geode settings menu
+            auto endRange1 = Mod::get()->getSettingValue<int64_t>("range1-end");
+            auto minBpm1 = Mod::get()->getSettingValue<int64_t>("range1-min-bpm");
+            auto maxBpm1 = Mod::get()->getSettingValue<int64_t>("range1-max-bpm");
+            
+            auto minBpm2 = Mod::get()->getSettingValue<int64_t>("range2-min-bpm");
+            auto maxBpm2 = Mod::get()->getSettingValue<int64_t>("range2-max-bpm");
+
+            int targetMin = minBpm1;
+            int targetMax = maxBpm1;
+
+            // Checking if progress is past the first range trigger
+            if (currentPercent > endRange1) {
+                // Smoothly interpolating pulse value towards late-game max
+                float progress = (currentPercent - endRange1) / (100.0f - endRange1);
+                targetMin = static_cast<int>(minBpm1 + (minBpm2 - minBpm1) * progress);
+                targetMax = static_cast<int>(maxBpm1 + (maxBpm2 - maxBpm1) * progress);
+            }
+
+            // Realtime randomizer to make the heart rate look alive
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> distr(targetMin, targetMax);
+            int currentBPM = distr(gen);
+
+            // Updating string value on screen
+            m_fields->m_bpmLabel->setString(fmt::format("{} BPM", currentBPM).c_str());
+
+            // Pulsating heart animation effect
+            m_fields->m_heartSprite->setScale(0.75f);
+            m_fields->m_heartSprite->runAction(CCScaleTo::create(0.2f, 0.6f));
+        }
+    }
 };
